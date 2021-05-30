@@ -30,6 +30,8 @@ namespace DemoIdentity
             services.AddIdentityCore<DemoIdentityUser>(options => { });
             services.AddScoped<IUserStore<DemoIdentityUser>, DemoIdentityUserStore>();
 
+            services.AddAuthentication("cookies").AddCookie("cookies", options => options.LoginPath = "/Home/Login");
+
 
             services.Configure<CookiePolicyOptions>(options =>
             {
@@ -55,6 +57,8 @@ namespace DemoIdentity
                 app.UseHsts();
             }
 
+
+            app.UseAuthentication();
             app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseCookiePolicy();
