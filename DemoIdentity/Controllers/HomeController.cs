@@ -15,10 +15,13 @@ namespace DemoIdentity.Controllers
     public class HomeController : Controller
     {
         private readonly UserManager<DemoIdentityUser> userManager;
+        private readonly IUserClaimsPrincipalFactory<DemoIdentityUser> claimsPrincipalFactory;
 
-        public HomeController(UserManager<DemoIdentityUser> userManager)
+        public HomeController(UserManager<DemoIdentityUser> userManager,
+            IUserClaimsPrincipalFactory<DemoIdentityUser> claimsPrincipalFactory)
         {
             this.userManager = userManager;
+            this.claimsPrincipalFactory = claimsPrincipalFactory;
         }
 
         public IActionResult Index()
@@ -98,11 +101,9 @@ namespace DemoIdentity.Controllers
 
                 if (user != null && await userManager.CheckPasswordAsync(user, model.Password))
                 {
-                    var identity = new ClaimsIdentity("cookies");
-                    identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, user.Id));
-                    identity.AddClaim(new Claim(ClaimTypes.Name, user.UserName));
+                    var principal = await claimsPrincipalFactory.CreateAsync(user);
 
-                    await HttpContext.SignInAsync("cookies", new ClaimsPrincipal(identity));
+                    await HttpContext.SignInAsync("Identity.Application", principal);
 
                     return RedirectToAction("Index");
                 }

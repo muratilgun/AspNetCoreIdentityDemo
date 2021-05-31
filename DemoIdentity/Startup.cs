@@ -34,9 +34,13 @@ namespace DemoIdentity
             var migrationAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
 
             services.AddDbContext<DemoIdentityUserDbContext>(opt => opt.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(migrationAssembly)));
-            services.AddIdentityCore<DemoIdentityUser>(options => { });
+            services.AddIdentity<DemoIdentityUser, IdentityRole>(options => { })
+                .AddEntityFrameworkStores<DemoIdentityUserDbContext>();
+            services.AddScoped<IUserClaimsPrincipalFactory<DemoIdentityUser>, DemoIdentityUserClaimsPrincipalFactory>();
+
             services.AddScoped<IUserStore<DemoIdentityUser>, UserOnlyStore<DemoIdentityUser, DemoIdentityUserDbContext>>();
-            services.AddAuthentication("cookies").AddCookie("cookies", options => options.LoginPath = "/Home/Login");
+
+            services.ConfigureApplicationCookie(options => options.LoginPath ="/Home/Login");
 
 
             services.Configure<CookiePolicyOptions>(options =>
