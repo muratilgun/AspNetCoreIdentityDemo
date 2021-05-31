@@ -58,6 +58,13 @@ namespace DemoIdentity
             services.Configure<EmailConfirmationTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromDays(2));
             services.ConfigureApplicationCookie(options => options.LoginPath = "/Home/Login");
 
+            services.AddAuthentication().AddGoogle("google", options => 
+            {
+                options.ClientId = "809112919860-h1n7dc7dirso4lvvl6saqqduui0ajdno.apps.googleusercontent.com";
+                options.ClientSecret = "5emMid3h8mhXcHfcXH2IlfFP";
+                options.SignInScheme=IdentityConstants.ExternalScheme;
+            });
+
 
             services.Configure<CookiePolicyOptions>(options =>
             {
