@@ -150,9 +150,25 @@ namespace DemoIdentity.Controllers
 
                         await userManager.ResetAccessFailedCountAsync(user);
 
+                        if (await userManager.GetTwoFactorEnabledAsync(user))
+                        {
+                            var validProviders =
+                                await userManager.GetValidTwoFactorProvidersAsync(user);
+
+                            if (validProviders.Contains("Email"))
+                            {
+                                var token = await userManager.GenerateTwoFactorTokenAsync(user, "Email");
+                                System.IO.File.WriteAllText("email2sv.txt", token);
+
+                                await HttpContext.SignInAsync(IdentityConstants.TwoFactorUserIdScheme,
+                                    Store2FA(user.Id, "Email"));
+                                return RedirectToAction("TwoFactor");
+                            }
+                        }
+
                         var principal = await claimsPrincipalFactory.CreateAsync(user);
 
-                        await HttpContext.SignInAsync("Identity.Application", principal);
+                        await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, principal);
 
                         return RedirectToAction("Index");
                     }
@@ -170,6 +186,18 @@ namespace DemoIdentity.Controllers
 
             return View();
         }
+
+        private ClaimsPrincipal Store2FA(string userId, string provider)
+        {
+            var identity = new ClaimsIdentity(new List<Claim>
+            {
+                new Claim("sub", userId),
+                new Claim("amr", provider)
+            }, IdentityConstants.TwoFactorUserIdScheme);
+
+            return new ClaimsPrincipal(identity);
+        }
+
 
         [HttpGet]
         public IActionResult ForgotPassword()
@@ -237,6 +265,51 @@ namespace DemoIdentity.Controllers
             return View();
         }
 
+
+        [HttpGet]
+        public IActionResult TwoFactor()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> TwoFactor(TwoFactorModel model)
+        {
+            var result = await HttpContext.AuthenticateAsync(IdentityConstants.TwoFactorUserIdScheme);
+            if (!result.Succeeded)
+            {
+                ModelState.AddModelError("", "You login request has expired, please start over");
+                return View();
+            }
+
+            if (ModelState.IsValid)
+            {
+                var user = await userManager.FindByIdAsync(result.Principal.FindFirstValue("sub"));
+
+                if (user != null)
+                {
+                    var isValid = await userManager.VerifyTwoFactorTokenAsync(user,
+                        result.Principal.FindFirstValue("amr"), model.Token);
+
+                    if (isValid)
+                    {
+                        await HttpContext.SignOutAsync(IdentityConstants.TwoFactorUserIdScheme);
+
+                        var claimsPrincipal = await claimsPrincipalFactory.CreateAsync(user);
+                        await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, claimsPrincipal);
+
+                        return RedirectToAction("Index");
+                    }
+
+                    ModelState.AddModelError("", "Invalid token");
+                    return View();
+                }
+
+                ModelState.AddModelError("", "Invalid Request");
+            }
+
+            return View();
+        }
     }
 }
 
