@@ -155,6 +155,13 @@ namespace DemoIdentity.Controllers
                             var validProviders =
                                 await userManager.GetValidTwoFactorProvidersAsync(user);
 
+                            if (validProviders.Contains(userManager.Options.Tokens.AuthenticatorTokenProvider))
+                            {
+                                await HttpContext.SignInAsync(IdentityConstants.TwoFactorUserIdScheme,
+                                    Store2FA(user.Id, userManager.Options.Tokens.AuthenticatorTokenProvider));
+                                return RedirectToAction("TwoFactor");
+                            }
+
                             if (validProviders.Contains("Email"))
                             {
                                 var token = await userManager.GenerateTwoFactorTokenAsync(user, "Email");
@@ -310,6 +317,40 @@ namespace DemoIdentity.Controllers
 
             return View();
         }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> RegisterAuthenticator()
+        {
+            var user = await userManager.GetUserAsync(User);
+            var authenticatorKey = await userManager.GetAuthenticatorKeyAsync(user);
+
+            if (authenticatorKey == null)
+            {
+                await userManager.ResetAuthenticatorKeyAsync(user);
+                authenticatorKey = await userManager.GetAuthenticatorKeyAsync(user);
+            }
+            return View(new RegisterAuthenticatorModel { AuthenticatorKey = authenticatorKey });
+        }
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> RegisterAuthenticator(RegisterAuthenticatorModel model)
+        {
+            var user = await userManager.GetUserAsync(User);
+            var isValid = await userManager.VerifyTwoFactorTokenAsync(user,
+                userManager.Options.Tokens.AuthenticatorTokenProvider, model.Code);
+
+            if (!isValid)
+            {
+                ModelState.AddModelError("", "Code is invalid");
+                return View(model);
+            }
+
+            await userManager.SetTwoFactorEnabledAsync(user, true);
+            return View("Success");
+        }
+
     }
 }
 
