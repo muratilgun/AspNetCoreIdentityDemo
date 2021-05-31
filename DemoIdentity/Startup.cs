@@ -34,13 +34,29 @@ namespace DemoIdentity
             var migrationAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
 
             services.AddDbContext<DemoIdentityUserDbContext>(opt => opt.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(migrationAssembly)));
-            services.AddIdentity<DemoIdentityUser, IdentityRole>(options => { })
-                .AddEntityFrameworkStores<DemoIdentityUserDbContext>();
+            services.AddIdentity<DemoIdentityUser, IdentityRole>(options =>
+            {
+                //options.SignIn.RequireConfirmedEmail = true;
+                options.Tokens.EmailConfirmationTokenProvider = "emailconf";
+                options.Password.RequireNonAlphanumeric = false;
+                options.Password.RequiredUniqueChars = 4;
+                options.User.RequireUniqueEmail = true;
+
+                //options.Lockout.AllowedForNewUsers = true;
+                options.Lockout.MaxFailedAccessAttempts = 3;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(10);
+            })
+                .AddEntityFrameworkStores<DemoIdentityUserDbContext>()
+                .AddDefaultTokenProviders()
+                .AddTokenProvider<EmailConfirmationTokenProvider<DemoIdentityUser>>("emailconf")
+                .AddPasswordValidator<DoesNotContainPasswordValidator<DemoIdentityUser>>();
             services.AddScoped<IUserClaimsPrincipalFactory<DemoIdentityUser>, DemoIdentityUserClaimsPrincipalFactory>();
 
             services.AddScoped<IUserStore<DemoIdentityUser>, UserOnlyStore<DemoIdentityUser, DemoIdentityUserDbContext>>();
 
-            services.ConfigureApplicationCookie(options => options.LoginPath ="/Home/Login");
+            services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromHours(3));
+            services.Configure<EmailConfirmationTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromDays(2));
+            services.ConfigureApplicationCookie(options => options.LoginPath = "/Home/Login");
 
 
             services.Configure<CookiePolicyOptions>(options =>
