@@ -9,8 +9,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using System.Reflection;
 
 namespace DemoIdentity
 {
@@ -26,10 +30,12 @@ namespace DemoIdentity
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            var connectionString = @"Data Source=(LocalDb)\MSSQLLocalDB;database=IdentityDemo.DemoIdentityUser;trusted_connection=yes;";
+            var migrationAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
 
+            services.AddDbContext<DemoIdentityUserDbContext>(opt => opt.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(migrationAssembly)));
             services.AddIdentityCore<DemoIdentityUser>(options => { });
-            services.AddScoped<IUserStore<DemoIdentityUser>, DemoIdentityUserStore>();
-
+            services.AddScoped<IUserStore<DemoIdentityUser>, UserOnlyStore<DemoIdentityUser, DemoIdentityUserDbContext>>();
             services.AddAuthentication("cookies").AddCookie("cookies", options => options.LoginPath = "/Home/Login");
 
 
